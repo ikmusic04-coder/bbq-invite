@@ -430,6 +430,62 @@
     .attendee-meta { font-size: .72rem; color: var(--text-mid); margin-top: 2px; }
     .attendee-status { flex-shrink: 0; }
 
+    /* ── Manual check-in buttons ── */
+    .checkin-btn {
+      padding: 7px 14px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-mid);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .checkin-btn:hover { border-color: var(--green); color: var(--green); }
+
+    .confirm-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .confirm-label {
+      font-size: .68rem;
+      color: var(--amber);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .confirm-btns { display: flex; gap: 6px; }
+    .btn-cancel {
+      padding: 6px 12px;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      color: var(--text-mid);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-cancel:hover { border-color: var(--text-mid); color: var(--text); }
+    .btn-confirm {
+      padding: 6px 14px;
+      background: var(--green);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn-confirm:hover { opacity: .85; }
+
     /* Loading skeleton */
     .skeleton {
       background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 50%, var(--surface2) 75%);
@@ -819,20 +875,50 @@
       return;
     }
     list.innerHTML = rows.map(r => `
-      <div class="attendee-card">
+      <div class="attendee-card" id="acard-${r.id}">
         <div class="attendee-avatar">${esc(r.name).charAt(0)}</div>
         <div class="attendee-info">
           <div class="attendee-name">${esc(r.name)}${r.nickname ? ` <span style="color:var(--text-mid);font-weight:400;font-size:.78rem;">（${esc(r.nickname)}）</span>` : ''}</div>
           <div class="attendee-meta">${esc(r.inviter)} の招待 ／ ${esc(r.occupation || '—')}</div>
         </div>
-        <div class="attendee-status">
+        <div class="attendee-status" id="astatus-${r.id}">
           ${r.checked_in
             ? '<span class="badge badge-in">✅ 入場済</span>'
-            : '<span class="badge badge-out">未入場</span>'}
+            : `<button class="checkin-btn" data-action="start" data-id="${r.id}">チェックイン</button>`}
         </div>
       </div>
     `).join('');
   }
+
+  /* ── Manual check-in event delegation ── */
+  document.getElementById('attendeeList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id     = btn.dataset.id;
+    const action = btn.dataset.action;
+    const statusEl = document.getElementById(`astatus-${id}`);
+
+    if (action === 'start') {
+      statusEl.innerHTML = `
+        <div class="confirm-row">
+          <span class="confirm-label">本当にチェックインしますか？</span>
+          <div class="confirm-btns">
+            <button class="btn-cancel" data-action="cancel" data-id="${id}">キャンセル</button>
+            <button class="btn-confirm" data-action="confirm" data-id="${id}">確定</button>
+          </div>
+        </div>`;
+    } else if (action === 'cancel') {
+      statusEl.innerHTML = `<button class="checkin-btn" data-action="start" data-id="${id}">チェックイン</button>`;
+    } else if (action === 'confirm') {
+      btn.disabled = true;
+      btn.textContent = '処理中...';
+      await db
+        .from('registrations')
+        .update({ checked_in: true, checked_in_at: new Date().toISOString() })
+        .eq('id', parseInt(id, 10));
+      await loadAll();
+    }
+  });
 
   /* ═══════════ TAB NAVIGATION ═══════════ */
   document.querySelectorAll('.tab-btn').forEach(btn => {
