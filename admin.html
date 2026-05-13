@@ -829,9 +829,9 @@
       text.textContent = '登録が見つかりません';
       name.textContent = '';
     } else if (reg.checked_in) {
-      overlay.className = 'qr-overlay show already';
+      overlay.className = 'qr-overlay show error';
       icon.textContent = '⚠️';
-      text.textContent = '入場済みです';
+      text.textContent = '読み込み済みです';
       name.textContent = `${reg.name}（${reg.nickname || ''}）`;
     } else {
       await db
@@ -883,7 +883,7 @@
         </div>
         <div class="attendee-status" id="astatus-${r.id}">
           ${r.checked_in
-            ? '<span class="badge badge-in">✅ 入場済</span>'
+            ? `<button class="checkin-btn" style="color:var(--text-mid)" data-action="revert-start" data-id="${r.id}">✅ 入場済</button>`
             : `<button class="checkin-btn" data-action="start" data-id="${r.id}">チェックイン</button>`}
         </div>
       </div>
@@ -915,6 +915,25 @@
       await db
         .from('registrations')
         .update({ checked_in: true, checked_in_at: new Date().toISOString() })
+        .eq('id', parseInt(id, 10));
+      await loadAll();
+    } else if (action === 'revert-start') {
+      statusEl.innerHTML = `
+        <div class="confirm-row">
+          <span class="confirm-label" style="color:var(--red);">未入場に戻しますか？</span>
+          <div class="confirm-btns">
+            <button class="btn-cancel" data-action="revert-cancel" data-id="${id}">キャンセル</button>
+            <button class="btn-confirm" style="background:var(--red);" data-action="revert-confirm" data-id="${id}">確定</button>
+          </div>
+        </div>`;
+    } else if (action === 'revert-cancel') {
+      statusEl.innerHTML = `<button class="checkin-btn" style="color:var(--text-mid)" data-action="revert-start" data-id="${id}">✅ 入場済</button>`;
+    } else if (action === 'revert-confirm') {
+      btn.disabled = true;
+      btn.textContent = '処理中...';
+      await db
+        .from('registrations')
+        .update({ checked_in: false, checked_in_at: null })
         .eq('id', parseInt(id, 10));
       await loadAll();
     }
