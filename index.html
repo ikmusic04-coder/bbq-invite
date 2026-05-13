@@ -507,6 +507,44 @@
       100% { transform: translateY(-15vh) rotate(720deg); opacity: 0; }
     }
 
+    /* ── Validation error summary ── */
+    .error-summary {
+      display: none;
+      background: rgba(239,68,68,.08);
+      border: 1.5px solid rgba(239,68,68,.35);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .error-summary.visible { display: block; }
+    .error-summary-title {
+      font-size: .82rem;
+      font-weight: 700;
+      color: #EF4444;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .error-summary-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .error-summary-list li {
+      font-size: .78rem;
+      color: #B91C1C;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .error-summary-list li::before {
+      content: '•';
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
     /* ── Submit loading state ── */
     .spinner {
       width: 18px; height: 18px;
@@ -746,6 +784,11 @@
           </div>
         </div>
 
+        <div class="error-summary" id="errorSummary">
+          <div class="error-summary-title">⚠️ 以下の項目をご確認ください</div>
+          <ul class="error-summary-list" id="errorSummaryList"></ul>
+        </div>
+
         <button type="submit" class="submit-btn">
           <span>✨</span><span>回答を送信する</span><span>→</span>
         </button>
@@ -924,33 +967,68 @@
   document.getElementById('rsvpForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     let ok = true;
+    const errors = [];
     const attendance = attendSel.value;
     const nameEl    = document.getElementById('name');
     const inviterEl = document.getElementById('inviter');
 
-    if (!nameEl.value.trim()) { markField(nameEl, false); ok = false; } else markField(nameEl, true);
-    if (!inviterEl.value)     { markField(inviterEl, false); ok = false; } else markField(inviterEl, true);
-    if (!attendance)          { markField(attendSel, false); ok = false; } else markField(attendSel, true);
+    if (!nameEl.value.trim()) {
+      markField(nameEl, false); ok = false;
+      errors.push('お名前が入力されていません');
+    } else markField(nameEl, true);
+
+    if (!inviterEl.value) {
+      markField(inviterEl, false); ok = false;
+      errors.push('招待者が選択されていません');
+    } else markField(inviterEl, true);
+
+    if (!attendance) {
+      markField(attendSel, false); ok = false;
+      errors.push('参加可否が選択されていません');
+    } else markField(attendSel, true);
 
     if (attendance === 'attend') {
-      ['nickname','job','boom','email'].forEach(function (id) {
+      const fieldLabels = {
+        nickname: 'ニックネーム',
+        job:      '職業',
+        boom:     '最近のマイブーム',
+        email:    'メールアドレス',
+      };
+      Object.entries(fieldLabels).forEach(([id, label]) => {
         const f = document.getElementById(id);
         const v = id === 'email'
           ? (f.value.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.value))
           : f.value.trim();
-        if (!v) { markField(f, false); ok = false; } else markField(f, true);
+        if (!v) {
+          markField(f, false); ok = false;
+          errors.push(id === 'email' && f.value.trim()
+            ? 'メールアドレスの形式が正しくありません'
+            : `${label}が入力されていません`);
+        } else markField(f, true);
       });
+
       const lblPay = document.getElementById('cbPaymentLabel');
       const lblCan = document.getElementById('cbCancelLabel');
-      if (!document.getElementById('cbPayment').checked) { markCb(lblPay, false); ok = false; } else markCb(lblPay, true);
-      if (!document.getElementById('cbCancel').checked)  { markCb(lblCan, false); ok = false; } else markCb(lblCan, true);
+      if (!document.getElementById('cbPayment').checked) {
+        markCb(lblPay, false); ok = false;
+        errors.push('参加費に関する確認事項にチェックを入れてください');
+      } else markCb(lblPay, true);
+      if (!document.getElementById('cbCancel').checked) {
+        markCb(lblCan, false); ok = false;
+        errors.push('キャンセルポリシーに関する確認事項にチェックを入れてください');
+      } else markCb(lblCan, true);
     }
 
+    /* ── Show / hide error summary ── */
+    const summaryEl = document.getElementById('errorSummary');
+    const summaryList = document.getElementById('errorSummaryList');
     if (!ok) {
-      const first = document.querySelector('.field-error, .cb-error');
-      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      summaryList.innerHTML = errors.map(msg => `<li>${msg}</li>`).join('');
+      summaryEl.classList.add('visible');
+      summaryEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    summaryEl.classList.remove('visible');
 
     /* ── Loading state ── */
     const btn = document.querySelector('.submit-btn');
@@ -971,6 +1049,7 @@
         email:       attendance === 'attend' ? document.getElementById('email').value.trim()    : null,
         notes:       document.getElementById('notes')?.value.trim() || null,
       };
+
 
       const { data, error } = await db.from('registrations').insert(payload).select('id').single();
       if (error) throw new Error('データの保存に失敗しました: ' + error.message);
@@ -1037,10 +1116,16 @@
 
   /* ── Clear errors on input ── */
   document.querySelectorAll('input, select, textarea').forEach(function (el) {
-    el.addEventListener('input', function () { this.classList.remove('field-error'); });
+    el.addEventListener('input', function () {
+      this.classList.remove('field-error');
+      document.getElementById('errorSummary').classList.remove('visible');
+    });
   });
   document.querySelectorAll('.checkbox-label').forEach(function (lb) {
-    lb.querySelector('input').addEventListener('change', function () { lb.classList.remove('cb-error'); });
+    lb.querySelector('input').addEventListener('change', function () {
+      lb.classList.remove('cb-error');
+      document.getElementById('errorSummary').classList.remove('visible');
+    });
   });
 
   /* ── Particles (attend screen) ── */
