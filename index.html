@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IK主催BBQ 参加確認フォーム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Noto+Sans+JP:wght@300;400;500;700&family=Caveat:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> -->
+  <style>
+    :root {
+      --orange: #FF6B35;
+      --amber: #FFAB46;
+      --teal: #0D9488;
+      --card-bg: rgba(255, 252, 245, 0.96);
+      --text-dark: #1C1917;
+      --text-mid: #57534E;
+      --text-light: #A8A29E;
+      --radius: 22px;
+      --radius-sm: 13px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(170deg,
+        #FF6B35 0%,
+        #FF9A50 18%,
+        #FF7070 38%,
+        #B44BEE 60%,
+        #4A5BD6 78%,
+        #0F2050 100%
+      );
+      background-attachment: fixed;
+      overflow-x: hidden;
+      color: var(--text-dark);
+      position: relative;
+    }
+
+    /* ── Stars ── */
+    #stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #fff;
+      opacity: 0;
+      animation: twinkle var(--d, 3s) ease-in-out infinite var(--dl, 0s);
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0; transform: scale(.5); }
+      50%      { opacity: .85; transform: scale(1); }
+    }
+
+    /* ── Fixed bottom waves ── */
+    .bg-waves {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 90px;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .bg-waves svg {
+      width: 200%;
+      animation: waveScroll 10s linear infinite;
+    }
+    @keyframes waveScroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── Page layout ── */
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      padding: 52px 16px 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      text-align: center;
+      max-width: 640px;
+      width: 100%;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.25);
+      color: rgba(255,255,255,.95);
+      padding: 5px 16px;
+      border-radius: 100px;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .fire-icon {
+      font-size: 3.2rem;
+      display: block;
+      margin-bottom: 10px;
+      animation: fireFlicker 1.6s ease-in-out infinite alternate;
+    }
+    @keyframes fireFlicker {
+      from { transform: scale(1) rotate(-3deg); filter: hue-rotate(0deg); }
+      to   { transform: scale(1.12) rotate(3deg); filter: hue-rotate(18deg); }
+    }
+    .main-title {
+      font-family: 'Pacifico', cursive;
+      font-size: clamp(1.8rem, 7vw, 3rem);
+      color: #fff;
+      text-shadow: 0 2px 0 rgba(0,0,0,.1), 0 4px 24px rgba(0,0,0,.2), 0 0 80px rgba(255,200,100,.5);
+      line-height: 1.28;
+      margin-bottom: 12px;
+    }
+    .title-accent {
+      font-family: 'Bebas Neue', cursive;
+      letter-spacing: .08em;
+      color: #fff;
+    }
+    .title-sub {
+      font-family: 'Caveat', cursive;
+      font-size: 1.25rem;
+      color: rgba(255,255,255,.88);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,.6);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 40px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.8) inset;
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    /* ── Info card ── */
+    .info-inner { padding: 28px; }
+
+    .section-label {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,107,53,.2);
+    }
+
+    .info-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(255,107,53,.04), rgba(255,171,70,.07));
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,107,53,.1);
+    }
+    .info-emoji { font-size: 1.4rem; width: 36px; text-align: center; flex-shrink: 0; }
+    .info-key {
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 2px;
+    }
+    .info-val { font-size: .95rem; font-weight: 600; color: var(--text-dark); line-height: 1.4; }
+    .info-sub { font-size: .78rem; color: var(--text-mid); margin-top: 2px; }
+    .map-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+      padding: 5px 12px;
+      background: linear-gradient(135deg, rgba(255,107,53,.12), rgba(255,171,70,.15));
+      border: 1px solid rgba(255,107,53,.3);
+      border-radius: 100px;
+      color: var(--orange);
+      font-size: .75rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .2s, transform .2s;
+    }
+    .map-link:hover {
+      background: linear-gradient(135deg, rgba(255,107,53,.2), rgba(255,171,70,.25));
+      transform: translateY(-1px);
+    }
+
+    .info-notes {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: rgba(251,191,36,.1);
+      border-radius: var(--radius-sm);
+      border: 1px dashed rgba(251,191,36,.55);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .note-line {
+      font-size: .8rem;
+      color: #78350F;
+      line-height: 1.7;
+      display: flex;
+      gap: 4px;
+    }
+    .note-line::before { content: '※'; font-weight: 700; flex-shrink: 0; }
+
+    /* ── Image card ── */
+    .card-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .img-placeholder {
+      height: 220px;
+      background: linear-gradient(135deg, #FF6B35, #FFAB46);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      letter-spacing: .2em;
+    }
+    .image-caption {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text-light);
+      padding: 10px 16px 14px;
+      font-style: italic;
+    }
+
+    /* ── Form card ── */
+    .form-inner { padding: 32px; }
+
+    .form-section-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 26px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid rgba(255,107,53,.15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group { margin-bottom: 22px; }
+
+    .field-label {
+      display: block;
+      font-size: .82rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+      letter-spacing: .02em;
+    }
+    .req { color: var(--orange); margin-left: 3px; }
+    .opt { color: var(--text-light); font-size: .7rem; font-weight: 400; margin-left: 4px; }
+
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid rgba(0,0,0,.09);
+      border-radius: 12px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .9rem;
+      color: var(--text-dark);
+      background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input::placeholder, textarea::placeholder { color: var(--text-light); }
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 4px rgba(255,107,53,.13);
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23FF6B35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 44px;
+      cursor: pointer;
+    }
+    textarea { min-height: 100px; resize: vertical; line-height: 1.65; }
+
+    .field-error { border-color: #EF4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important; }
+
+    /* ── Conditional section ── */
+    .conditional-section {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height .6s cubic-bezier(.4,0,.2,1), opacity .4s ease;
+    }
+    .conditional-section.show {
+      max-height: 2200px;
+      opacity: 1;
+    }
+
+    .cond-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(255,107,53,.09), rgba(255,171,70,.12));
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,107,53,.2);
+      margin-bottom: 24px;
+    }
+    .cond-banner-text { font-size: .8rem; font-weight: 600; color: #92400E; }
+
+    /* ── Checkbox ── */
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(0,0,0,.02);
+      border-radius: var(--radius-sm);
+      border: 2px solid rgba(0,0,0,.06);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .checkbox-label:hover { background: rgba(255,107,53,.04); border-color: rgba(255,107,53,.18); }
+    .checkbox-label:has(input:checked) { background: rgba(255,107,53,.07); border-color: rgba(255,107,53,.28); }
+    .checkbox-label input[type="checkbox"] {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+      accent-color: var(--orange);
+      margin-top: 3px;
+      cursor: pointer;
+    }
+    .checkbox-text { font-size: .8rem; line-height: 1.75; color: var(--text-mid); }
+    .cb-error { outline: 2px solid #EF4444; border-radius: var(--radius-sm); }
+
+    /* ── Submit ── */
+    .submit-btn {
+      width: 100%;
+      padding: 16px 24px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #FF6B35 0%, #FF9A50 50%, #FFAB46 100%);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      cursor: pointer;
+      transition: transform .3s cubic-bezier(.4,0,.2,1), box-shadow .3s;
+      box-shadow: 0 4px 20px rgba(255,107,53,.45), 0 1px 0 rgba(255,255,255,.2) inset;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255,255,255,.12), transparent);
+      transform: translateX(-100%);
+      transition: transform .5s ease;
+    }
+    .submit-btn:hover::before { transform: translateX(100%); }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255,107,53,.55); }
+    .submit-btn:active { transform: translateY(0); }
+
+    /* ═══════════ THANK-YOU SCREENS ═══════════ */
+    .ty-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .ty-screen.active { display: flex; }
+
+    /* Attend */
+    #ty-attend {
+      background: linear-gradient(180deg,
+        #FF6B35 0%, #FF8E53 15%, #FF6090 38%,
+        #3A48E8 60%, #0B1F6C 82%, #040E2E 100%);
+    }
+    /* Maybe */
+    #ty-maybe {
+      background: linear-gradient(180deg, #FF9A50 0%, #FF7862 28%, #5B5BD6 68%, #1E3A5F 100%);
+    }
+    /* Decline */
+    #ty-decline {
+      background: linear-gradient(180deg, #667EEA 0%, #764BA2 50%, #1E3A5F 100%);
+    }
+
+    .ty-scene { position: absolute; inset: 0; pointer-events: none; }
+    .ty-content { position: relative; z-index: 10; max-width: 480px; }
+
+    .ty-icon {
+      font-size: 4.5rem;
+      display: block;
+      margin-bottom: 20px;
+      animation: bounceIn .8s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .ty-title {
+      font-family: 'Pacifico', cursive;
+      font-size: clamp(1.5rem, 6vw, 2.4rem);
+      color: #fff;
+      text-shadow: 0 2px 20px rgba(0,0,0,.3);
+      margin-bottom: 18px;
+      animation: slideUp .7s ease both;
+      animation-delay: .2s;
+    }
+    .ty-message {
+      font-size: .98rem;
+      color: rgba(255,255,255,.93);
+      line-height: 1.85;
+      background: rgba(0,0,0,.18);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 18px 26px;
+      border: 1px solid rgba(255,255,255,.15);
+      animation: slideUp .7s ease both;
+      animation-delay: .35s;
+      text-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+    .ty-emoji-row {
+      margin-top: 26px;
+      font-size: 2rem;
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      animation: slideUp .7s ease both;
+      animation-delay: .5s;
+    }
+    .ty-emoji-row span { display: inline-block; animation: floatItem 3s ease-in-out infinite; }
+    .ty-emoji-row span:nth-child(2) { animation-delay: .3s; }
+    .ty-emoji-row span:nth-child(3) { animation-delay: .6s; }
+    .ty-emoji-row span:nth-child(4) { animation-delay: .9s; }
+    .ty-emoji-row span:nth-child(5) { animation-delay: 1.2s; }
+
+    @keyframes bounceIn {
+      from { opacity: 0; transform: scale(.3); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes floatItem {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+
+    /* Floating particles */
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      animation: particleFly var(--d, 7s) ease-in-out infinite var(--dl, 0s);
+      opacity: 0;
+    }
+    @keyframes particleFly {
+      0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+      10%  { opacity: .85; }
+      90%  { opacity: .85; }
+      100% { transform: translateY(-15vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .form-inner { padding: 24px 20px; }
+      .info-inner  { padding: 20px; }
+      .page-wrapper { padding-top: 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Stars -->
+<div id="stars"></div>
+
+<!-- Fixed bottom waves -->
+<div class="bg-waves">
+  <svg viewBox="0 0 1440 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,45 C180,15 360,75 540,45 C720,15 900,75 1080,45 C1260,15 1350,60 1440,45 L1440,90 L0,90 Z" fill="rgba(255,255,255,.1)"/>
+    <path d="M0,60 C200,35 400,85 600,60 C800,35 1000,85 1200,60 C1320,45 1380,70 1440,60 L1440,90 L0,90 Z" fill="rgba(255,255,255,.07)"/>
+  </svg>
+</div>
+
+<!-- ═══════════ FORM SECTION ═══════════ -->
+<div class="page-wrapper" id="formSection">
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-badge">🌟 Event Invitation 2025</div>
+    <span class="fire-icon">🔥</span>
+    <h1 class="main-title"><span class="title-accent">IK</span>主催<span class="title-accent">BBQ</span><br>参加確認フォーム</h1>
+    <p class="title-sub">Summer BBQ 2025 🌊</p>
+  </header>
+
+  <!-- Event info -->
+  <div class="card">
+    <div class="info-inner">
+      <div class="section-label">📋 イベント概要</div>
+      <div class="info-list">
+        <div class="info-item">
+          <div class="info-emoji">📅</div>
+          <div>
+            <div class="info-key">日時</div>
+            <div class="info-val">7月28日（火） 18:00〜22:00</div>
+            <div class="info-sub">集合：17:30</div>
+          </div>
+        </div>
+        <div class="info-item">
+          <div class="info-emoji">🏕️</div>
+          <div>
+            <div class="info-key">会場</div>
+            <div class="info-val">WILD MAGIC - The Rainbow Farm -</div>
+            <a class="map-link" href="https://maps.app.goo.gl/4x4K43fUBLZabkAQ9?g_st=ic" target="_blank" rel="noopener">
+              📍 Google マップで見る
+            </a>
+          </div>
+        </div>
+        <div class="info-item">
+          <div class="info-emoji">🚉</div>
+          <div>
+            <div class="info-key">アクセス</div>
+            <div class="info-val">ゆりかもめ「新豊洲駅」 徒歩1分</div>
+          </div>
+        </div>
+        <div class="info-item">
+          <div class="info-emoji">💰</div>
+          <div>
+            <div class="info-key">参加費</div>
+            <div class="info-val">¥8,000</div>
+            <div class="info-sub">食材＋飲み放題付き</div>
+          </div>
+        </div>
+      </div>
+      <div class="info-notes">
+        <div class="note-line">途中参加・退出OK！</div>
+        <div class="note-line">飲食物持ち込み可能です！（追加食材・アルコール歓迎！）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image -->
+  <div class="card">
+    <img src="images/bbq.jpg" alt="BBQの食材イメージ" class="card-img"
+         onerror="this.style.display='none'; document.getElementById('imgFallback').style.display='flex';">
+    <div id="imgFallback" class="img-placeholder" style="display:none;">🍖🔥🌽</div>
+    <p class="image-caption">当日の食材イメージです</p>
+  </div>
+
+  <!-- Form -->
+  <div class="card">
+    <div class="form-inner">
+      <h2 class="form-section-header">📝 参加登録フォーム</h2>
+      <form id="rsvpForm" novalidate>
+
+        <div class="form-group">
+          <label class="field-label" for="name">お名前（活動名可）<span class="req">*</span></label>
+          <input type="text" id="name" name="name" placeholder="例：田中 太郎" required>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label" for="org">所属団体・グループ<span class="opt">（任意）</span></label>
+          <input type="text" id="org" name="org" placeholder="例：○○大学バンドサークル">
+        </div>
+
+        <div class="form-group">
+          <label class="field-label" for="inviter">招待者<span class="req">*</span></label>
+          <select id="inviter" name="inviter" required>
+            <option value="">── 選択してください ──</option>
+            <option>池田 晃</option>
+            <option>反町 顕</option>
+            <option>山葉 隼也</option>
+            <option>秦 稜</option>
+            <option>久米 渉</option>
+            <option>田崎 遼</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label" for="attendance">参加可否<span class="req">*</span></label>
+          <select id="attendance" name="attendance" required>
+            <option value="">── 選択してください ──</option>
+            <option value="attend">参加</option>
+            <option value="maybe">未定</option>
+            <option value="decline">不参加</option>
+          </select>
+        </div>
+
+        <!-- Conditional: attend only -->
+        <div class="conditional-section" id="attendeeSection">
+          <div class="cond-banner">
+            <span>🎉</span>
+            <span class="cond-banner-text">参加いただける方へ、以下の情報もご入力ください</span>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="nickname">ニックネーム（名札用）<span class="req">*</span></label>
+            <input type="text" id="nickname" name="nickname" placeholder="例：たろちゃん">
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="job">職業（名札用）<span class="req">*</span></label>
+            <input type="text" id="job" name="job" placeholder="例：会社員、大学生、フリーランス">
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="boom">最近のマイブーム（名札用）<span class="req">*</span></label>
+            <input type="text" id="boom" name="boom" placeholder="例：サウナ、ポケモン、キャンプ">
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="email">QRコード送付用メールアドレス<span class="req">*</span></label>
+            <input type="email" id="email" name="email" placeholder="example@email.com">
+          </div>
+
+          <div class="form-group">
+            <label id="cbPaymentLabel" class="checkbox-label">
+              <input type="checkbox" id="cbPayment" name="cbPayment">
+              <span class="checkbox-text">参加費は当日現地にて現金でお支払いください。お釣りのないようご準備いただけますと大変助かります！</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label id="cbCancelLabel" class="checkbox-label">
+              <input type="checkbox" id="cbCancel" name="cbCancel">
+              <span class="checkbox-text">キャンセルのご連絡は7月16日（木）までにお願いいたします。以降のご連絡はキャンセル料（¥8,000）を頂戴しますので、あらかじめご了承ください。</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="notes">その他連絡事項<span class="opt">（任意）</span></label>
+            <textarea id="notes" name="notes" placeholder="アレルギー、遅刻の可能性など、何かあればご記入ください"></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          <span>✨</span><span>回答を送信する</span><span>→</span>
+        </button>
+
+      </form>
+    </div>
+  </div>
+
+</div><!-- /page-wrapper -->
+
+
+<!-- ═══════════ TY: ATTEND ═══════════ -->
+<div class="ty-screen" id="ty-attend">
+  <div class="ty-scene">
+    <!-- Moon -->
+    <svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+      </defs>
+      <circle cx="82%" cy="12%" r="28" fill="rgba(255,240,180,.92)" filter="url(#glow)"/>
+    </svg>
+
+    <!-- Palm left -->
+    <svg style="position:absolute;bottom:0;left:0;" width="140" height="420" viewBox="0 0 140 420" xmlns="http://www.w3.org/2000/svg">
+      <path d="M40,420 Q50,340 65,280" stroke="#3D2B1A" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <g transform="translate(65,280)">
+        <ellipse rx="58" ry="16" fill="#27652A" transform="rotate(-40)"/>
+        <ellipse rx="52" ry="14" fill="#339436" transform="rotate(0)"/>
+        <ellipse rx="56" ry="15" fill="#27652A" transform="rotate(40)"/>
+        <ellipse rx="50" ry="14" fill="#339436" transform="rotate(80)"/>
+        <ellipse rx="48" ry="13" fill="#27652A" transform="rotate(-80)"/>
+      </g>
+    </svg>
+
+    <!-- Palm right -->
+    <svg style="position:absolute;bottom:0;right:0;" width="140" height="420" viewBox="0 0 140 420" xmlns="http://www.w3.org/2000/svg">
+      <path d="M100,420 Q90,340 75,280" stroke="#3D2B1A" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <g transform="translate(75,280)">
+        <ellipse rx="58" ry="16" fill="#27652A" transform="rotate(40)"/>
+        <ellipse rx="52" ry="14" fill="#339436" transform="rotate(0)"/>
+        <ellipse rx="56" ry="15" fill="#27652A" transform="rotate(-40)"/>
+        <ellipse rx="50" ry="14" fill="#339436" transform="rotate(-80)"/>
+        <ellipse rx="48" ry="13" fill="#27652A" transform="rotate(80)"/>
+      </g>
+    </svg>
+
+    <!-- Ocean waves -->
+    <svg style="position:absolute;bottom:0;left:0;" width="100%" height="130" viewBox="0 0 800 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill="rgba(14,165,233,.55)" d="M0,65 C100,30 200,100 300,65 C400,30 500,100 600,65 C700,30 750,85 800,65 L800,130 L0,130 Z">
+        <animate attributeName="d" dur="5s" repeatCount="indefinite"
+          values="M0,65 C100,30 200,100 300,65 C400,30 500,100 600,65 C700,30 750,85 800,65 L800,130 L0,130 Z;
+                  M0,75 C100,50 200,90 300,55 C400,40 500,90 600,75 C700,50 750,75 800,55 L800,130 L0,130 Z;
+                  M0,65 C100,30 200,100 300,65 C400,30 500,100 600,65 C700,30 750,85 800,65 L800,130 L0,130 Z"/>
+      </path>
+      <path fill="rgba(14,165,233,.45)" d="M0,80 C150,55 300,105 450,80 C600,55 700,100 800,80 L800,130 L0,130 Z">
+        <animate attributeName="d" dur="7s" repeatCount="indefinite"
+          values="M0,80 C150,55 300,105 450,80 C600,55 700,100 800,80 L800,130 L0,130 Z;
+                  M0,85 C150,65 300,95 450,70 C600,60 700,90 800,85 L800,130 L0,130 Z;
+                  M0,80 C150,55 300,105 450,80 C600,55 700,100 800,80 L800,130 L0,130 Z"/>
+      </path>
+      <rect x="0" y="105" width="800" height="25" fill="rgba(2,132,199,.65)"/>
+    </svg>
+
+    <!-- Particles container -->
+    <div id="tyParticles" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;"></div>
+  </div>
+
+  <div class="ty-content">
+    <span class="ty-icon">🎉</span>
+    <h2 class="ty-title">See you at the BBQ!</h2>
+    <p class="ty-message">
+      ご回答ありがとうございました！<br>
+      QRコードをメールアドレスにお送りしましたので、<br>
+      ご確認くださいませ。
+    </p>
+    <div class="ty-emoji-row">
+      <span>🔥</span><span>🌊</span><span>🌴</span><span>🍻</span><span>🌟</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ TY: MAYBE ═══════════ -->
+<div class="ty-screen" id="ty-maybe">
+  <div class="ty-scene">
+    <svg style="position:absolute;bottom:0;left:0;" width="100%" height="110" viewBox="0 0 800 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill="rgba(99,102,241,.45)" d="M0,55 C200,20 400,90 600,55 C700,35 750,75 800,55 L800,110 L0,110 Z"/>
+      <path fill="rgba(99,102,241,.55)" d="M0,72 C200,50 400,95 600,72 C700,55 750,85 800,72 L800,110 L0,110 Z"/>
+    </svg>
+  </div>
+  <div class="ty-content">
+    <span class="ty-icon">🙏</span>
+    <h2 class="ty-title">ありがとうございます！</h2>
+    <p class="ty-message">
+      ご回答ありがとうございました！<br>
+      後日改めてご参加可否の確認を<br>させていただきます。
+    </p>
+    <div class="ty-emoji-row">
+      <span>🗓️</span><span>✉️</span><span>🌞</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ TY: DECLINE ═══════════ -->
+<div class="ty-screen" id="ty-decline">
+  <div class="ty-scene">
+    <svg style="position:absolute;inset:0;" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="15%" cy="18%" r="130" fill="rgba(118,75,162,.28)"/>
+      <circle cx="85%" cy="75%" r="180" fill="rgba(100,80,200,.18)"/>
+    </svg>
+  </div>
+  <div class="ty-content">
+    <span class="ty-icon">🙏</span>
+    <h2 class="ty-title">ありがとうございます！</h2>
+    <p class="ty-message">
+      ご回答ありがとうございました！<br>
+      またの機会にぜひご一緒しましょう。
+    </p>
+    <div class="ty-emoji-row">
+      <span>💫</span><span>🌙</span><span>✨</span>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  /* ── Stars ── */
+  (function () {
+    const c = document.getElementById('stars');
+    for (let i = 0; i < 70; i++) {
+      const s = document.createElement('div');
+      const sz = 1 + Math.random() * 2;
+      s.className = 'star';
+      s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;--d:${2+Math.random()*4}s;--dl:${-Math.random()*4}s`;
+      c.appendChild(s);
+    }
+  })();
+
+  /* ── Conditional section ── */
+  const attendSel = document.getElementById('attendance');
+  const attendSec = document.getElementById('attendeeSection');
+
+  attendSel.addEventListener('change', function () {
+    attendSec.classList.toggle('show', this.value === 'attend');
+  });
+
+  /* ── Validation helpers ── */
+  function markField(el, ok) {
+    el.classList.toggle('field-error', !ok);
+  }
+  function markCb(labelEl, ok) {
+    labelEl.classList.toggle('cb-error', !ok);
+  }
+
+  /* ── Form submit ── */
+  document.getElementById('rsvpForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    let ok = true;
+    const attendance = attendSel.value;
+
+    const name = document.getElementById('name');
+    const inviter = document.getElementById('inviter');
+
+    if (!name.value.trim())   { markField(name, false);    ok = false; } else markField(name, true);
+    if (!inviter.value)        { markField(inviter, false); ok = false; } else markField(inviter, true);
+    if (!attendance)           { markField(attendSel, false); ok = false; } else markField(attendSel, true);
+
+    if (attendance === 'attend') {
+      ['nickname','job','boom','email'].forEach(function (id) {
+        const f = document.getElementById(id);
+        const v = id === 'email'
+          ? (f.value.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.value))
+          : f.value.trim();
+        if (!v) { markField(f, false); ok = false; } else markField(f, true);
+      });
+
+      const cbPay    = document.getElementById('cbPayment');
+      const cbCancel = document.getElementById('cbCancel');
+      const lblPay   = document.getElementById('cbPaymentLabel');
+      const lblCan   = document.getElementById('cbCancelLabel');
+
+      if (!cbPay.checked)    { markCb(lblPay, false); ok = false; } else markCb(lblPay, true);
+      if (!cbCancel.checked) { markCb(lblCan, false); ok = false; } else markCb(lblCan, true);
+    }
+
+    if (!ok) {
+      const first = document.querySelector('.field-error, .cb-error');
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    /* Show thank-you */
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('stars').style.display = 'none';
+    document.querySelector('.bg-waves').style.display = 'none';
+
+    const tyId = attendance === 'attend' ? 'ty-attend'
+               : attendance === 'maybe'  ? 'ty-maybe'
+               :                           'ty-decline';
+
+    document.getElementById(tyId).classList.add('active');
+
+    if (attendance === 'attend') spawnParticles();
+  });
+
+  /* ── Clear errors on input ── */
+  document.querySelectorAll('input, select, textarea').forEach(function (el) {
+    el.addEventListener('input', function () { this.classList.remove('field-error'); });
+  });
+  document.querySelectorAll('.checkbox-label').forEach(function (lb) {
+    lb.querySelector('input').addEventListener('change', function () {
+      lb.classList.remove('cb-error');
+    });
+  });
+
+  /* ── Particles (attend screen) ── */
+  function spawnParticles() {
+    const wrap = document.getElementById('tyParticles');
+    const ems  = ['🔥','🌟','🎉','🍻','🌊','✨','🌴','🎊','⭐','🏖️'];
+    for (let i = 0; i < 18; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.textContent = ems[Math.floor(Math.random() * ems.length)];
+      p.style.cssText =
+        `left:${Math.random()*100}%;`
+        + `font-size:${0.9 + Math.random()*1.6}rem;`
+        + `--d:${5 + Math.random()*8}s;`
+        + `--dl:${-Math.random()*5}s;`;
+      wrap.appendChild(p);
+    }
+  }
+</script>
+</body>
+</html>
