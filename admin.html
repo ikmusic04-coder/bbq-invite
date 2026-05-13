@@ -568,6 +568,9 @@
               <th data-col="group_name">所属</th>
               <th data-col="inviter">招待者 <span class="sort-arrow">↕</span></th>
               <th data-col="attendance">参加可否 <span class="sort-arrow">↕</span></th>
+              <th data-col="nickname">ニックネーム</th>
+              <th data-col="occupation">職業</th>
+              <th data-col="hobby">マイブーム</th>
               <th data-col="checked_in">来場</th>
             </tr>
           </thead>
@@ -737,7 +740,7 @@
 
     const tbody = document.getElementById('regTableBody');
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">該当する回答がありません</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">該当する回答がありません</div></td></tr>`;
       return;
     }
 
@@ -756,6 +759,9 @@
         <td style="color:var(--text-mid);">${esc(r.group_name || '—')}</td>
         <td>${esc(r.inviter)}</td>
         <td>${attendBadge}</td>
+        <td style="color:var(--text-mid);">${esc(r.nickname || '—')}</td>
+        <td style="color:var(--text-mid);">${esc(r.occupation || '—')}</td>
+        <td style="color:var(--text-mid);">${esc(r.hobby || '—')}</td>
         <td>${checkinBadge}</td>
       </tr>`;
     }).join('');
