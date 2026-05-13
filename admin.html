@@ -1061,7 +1061,7 @@
         <div class="attendee-avatar">${esc(r.name).charAt(0)}</div>
         <div class="attendee-info">
           <div class="attendee-name">${esc(r.name)}${r.nickname ? ` <span style="color:var(--text-mid);font-weight:400;font-size:.78rem;">（${esc(r.nickname)}）</span>` : ''}</div>
-          <div class="attendee-meta">${esc(r.inviter)} の招待 ／ ${esc(r.occupation || '—')}${r.checked_in && r.checked_in_at ? ` ／ 入場 ${formatTime(r.checked_in_at)}` : ''}</div>
+          <div class="attendee-meta">${esc(r.inviter)} の招待${r.checked_in && r.checked_in_at ? ` ／ 入場 ${formatTime(r.checked_in_at)}` : ''}</div>
         </div>
         <div class="attendee-status" id="astatus-${r.id}">
           ${r.checked_in
