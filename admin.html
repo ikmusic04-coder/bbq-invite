@@ -568,6 +568,32 @@
       to   { background-position: -200% 0; }
     }
 
+    /* ── Manual history ── */
+    .manual-list { display: flex; flex-direction: column; gap: 8px; }
+    .manual-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .manual-card.method-manual { border-left: 3px solid var(--green); }
+    .manual-card.method-reverted { border-left: 3px solid var(--red); }
+    .manual-time {
+      font-size: .7rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      min-width: 72px;
+      text-align: center;
+    }
+    .manual-info { flex: 1; }
+    .manual-name { font-size: .9rem; font-weight: 700; color: var(--text); }
+    .manual-meta { font-size: .72rem; color: var(--text-mid); margin-top: 2px; }
+    .badge-manual-in  { background: rgba(16,185,129,.15); color: var(--green); }
+    .badge-manual-out { background: rgba(239,68,68,.15);  color: var(--red); }
+
     /* Responsive */
     @media (max-width: 480px) {
       .header-stats { display: none; }
@@ -697,6 +723,12 @@
       <div class="attendee-list" id="attendeeList"></div>
     </div>
 
+    <!-- ④ 手動操作履歴 -->
+    <div class="tab-panel" id="panel-manual">
+      <div class="section-title">✍️ 手動操作履歴</div>
+      <div class="manual-list" id="manualList"></div>
+    </div>
+
   </main>
 
   <!-- Tab bar -->
@@ -709,6 +741,9 @@
     </button>
     <button class="tab-btn" data-panel="attendees">
       <span class="tab-icon">👥</span>来場者リスト
+    </button>
+    <button class="tab-btn" data-panel="manual">
+      <span class="tab-icon">✍️</span>手動操作
     </button>
   </nav>
 </div>
@@ -769,6 +804,7 @@
     renderInviterStats();
     renderTable();
     renderAttendees();
+    renderManualHistory();
   }
 
   /* ── Inviter stats toggle ── */
@@ -982,7 +1018,7 @@
     } else {
       await db
         .from('registrations')
-        .update({ checked_in: true, checked_in_at: new Date().toISOString() })
+        .update({ checked_in: true, checked_in_at: new Date().toISOString(), checkin_method: 'qr' })
         .eq('id', registrationId);
 
       overlay.className = 'qr-overlay show success';
@@ -1060,7 +1096,7 @@
       btn.textContent = '処理中...';
       await db
         .from('registrations')
-        .update({ checked_in: true, checked_in_at: new Date().toISOString() })
+        .update({ checked_in: true, checked_in_at: new Date().toISOString(), checkin_method: 'manual', manual_action_at: new Date().toISOString() })
         .eq('id', parseInt(id, 10));
       await loadAll();
     } else if (action === 'revert-start') {
@@ -1079,7 +1115,7 @@
       btn.textContent = '処理中...';
       await db
         .from('registrations')
-        .update({ checked_in: false, checked_in_at: null })
+        .update({ checked_in: false, checked_in_at: null, checkin_method: 'reverted', manual_action_at: new Date().toISOString() })
         .eq('id', parseInt(id, 10));
       await loadAll();
     }
@@ -1100,6 +1136,37 @@
       if (panelId !== 'qr' && scanning) stopScanner();
     });
   });
+
+  /* ═══════════ MANUAL HISTORY ═══════════ */
+  function renderManualHistory() {
+    const rows = allData
+      .filter(r => r.checkin_method === 'manual' || r.checkin_method === 'reverted')
+      .sort((a, b) => new Date(b.manual_action_at) - new Date(a.manual_action_at));
+
+    const list = document.getElementById('manualList');
+    if (rows.length === 0) {
+      list.innerHTML = `<div class="empty-state">手動操作の履歴はありません</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(r => {
+      const dt = new Date(r.manual_action_at);
+      const timeStr = `${dt.getMonth()+1}/${dt.getDate()}<br>${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const isManual = r.checkin_method === 'manual';
+      const badge = isManual
+        ? '<span class="badge badge-manual-in">✅ 手動入場</span>'
+        : '<span class="badge badge-manual-out">↩ 入場取消</span>';
+      return `
+        <div class="manual-card method-${r.checkin_method}">
+          <div class="manual-time">${timeStr}</div>
+          <div class="attendee-avatar">${esc(r.name).charAt(0)}</div>
+          <div class="manual-info">
+            <div class="manual-name">${esc(r.name)}${r.nickname ? ` <span style="color:var(--text-mid);font-weight:400;font-size:.78rem;">（${esc(r.nickname)}）</span>` : ''}</div>
+            <div class="manual-meta">${esc(r.inviter)} の招待</div>
+          </div>
+          <div>${badge}</div>
+        </div>`;
+    }).join('');
+  }
 
   /* ── Helper ── */
   function esc(str) {
