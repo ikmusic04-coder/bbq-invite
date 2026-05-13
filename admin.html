@@ -306,6 +306,76 @@
       font-size: .85rem;
     }
 
+    /* ── Inviter stats ── */
+    .stats-section {
+      margin-bottom: 20px;
+    }
+    .stats-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: border-color .2s;
+      width: 100%;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .stats-toggle:hover { border-color: var(--orange); }
+    .stats-toggle-label {
+      font-size: .82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stats-toggle-arrow {
+      font-size: .75rem;
+      color: var(--text-mid);
+      transition: transform .3s;
+    }
+    .stats-toggle-arrow.open { transform: rotate(180deg); }
+    .stats-body {
+      display: none;
+      margin-top: 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .stats-body.open { display: block; }
+    .stats-table { width: 100%; border-collapse: collapse; }
+    .stats-table th {
+      background: var(--surface2);
+      padding: 9px 14px;
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--text-mid);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      text-align: center;
+      cursor: default;
+    }
+    .stats-table th:first-child { text-align: left; }
+    .stats-table td {
+      padding: 10px 14px;
+      font-size: .82rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    .stats-table td:first-child { text-align: left; font-weight: 600; }
+    .stats-table tr:last-child td {
+      background: rgba(255,255,255,.03);
+      font-weight: 700;
+      font-size: .8rem;
+    }
+    .snum-attend  { color: var(--green); font-weight: 700; }
+    .snum-maybe   { color: var(--amber); font-weight: 700; }
+    .snum-decline { color: var(--red);   font-weight: 700; }
+    .snum-total   { color: var(--text);  font-weight: 700; }
+
     /* ── QR Scanner ── */
     .qr-panel {
       display: flex;
@@ -536,6 +606,29 @@
     <!-- ① 回答一覧 -->
     <div class="tab-panel active" id="panel-list">
       <div class="section-title">📋 回答一覧</div>
+
+      <!-- 招待者別集計 -->
+      <div class="stats-section">
+        <button class="stats-toggle" id="statsToggle">
+          <span class="stats-toggle-label">👥 招待者別集計</span>
+          <span class="stats-toggle-arrow" id="statsArrow">▼</span>
+        </button>
+        <div class="stats-body" id="statsBody">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>招待者</th>
+                <th>参加</th>
+                <th>未定</th>
+                <th>不参加</th>
+                <th>合計</th>
+              </tr>
+            </thead>
+            <tbody id="statsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="filter-bar">
         <select class="filter-select" id="filterAttendance">
           <option value="">参加可否：すべて</option>
@@ -673,8 +766,55 @@
 
   function renderAll() {
     renderStats();
+    renderInviterStats();
     renderTable();
     renderAttendees();
+  }
+
+  /* ── Inviter stats toggle ── */
+  document.getElementById('statsToggle').addEventListener('click', () => {
+    const body  = document.getElementById('statsBody');
+    const arrow = document.getElementById('statsArrow');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+  });
+
+  /* ── Inviter stats table ── */
+  const INVITERS = ['池田 晃', '反町 顕', '山葉 隼也', '秦 稜', '久米 渉', '田崎 遼'];
+
+  function renderInviterStats() {
+    const tbody = document.getElementById('statsTableBody');
+    let totalAttend = 0, totalMaybe = 0, totalDecline = 0;
+
+    const rows = INVITERS.map(inv => {
+      const group   = allData.filter(r => r.inviter === inv);
+      const attend  = group.filter(r => r.attendance === '参加').length;
+      const maybe   = group.filter(r => r.attendance === '未定').length;
+      const decline = group.filter(r => r.attendance === '不参加').length;
+      const total   = group.length;
+      totalAttend  += attend;
+      totalMaybe   += maybe;
+      totalDecline += decline;
+      if (total === 0) return null;
+      return `<tr>
+        <td>${esc(inv)}</td>
+        <td class="snum-attend">${attend}</td>
+        <td class="snum-maybe">${maybe}</td>
+        <td class="snum-decline">${decline}</td>
+        <td class="snum-total">${total}</td>
+      </tr>`;
+    }).filter(Boolean);
+
+    const totalAll = totalAttend + totalMaybe + totalDecline;
+    rows.push(`<tr>
+      <td>合計</td>
+      <td class="snum-attend">${totalAttend}</td>
+      <td class="snum-maybe">${totalMaybe}</td>
+      <td class="snum-decline">${totalDecline}</td>
+      <td class="snum-total">${totalAll}</td>
+    </tr>`);
+
+    tbody.innerHTML = rows.join('');
   }
 
   /* ── Stats ── */
