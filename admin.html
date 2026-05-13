@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBQ 管理者画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0D1117;
+      --surface:  #161B22;
+      --surface2: #21262D;
+      --border:   rgba(255,255,255,.08);
+      --orange:   #FF6B35;
+      --amber:    #FFAB46;
+      --green:    #10B981;
+      --red:      #EF4444;
+      --blue:     #3B82F6;
+      --text:     #E6EDF3;
+      --text-mid: #8B949E;
+      --text-dim: #484F58;
+      --radius:   14px;
+      --radius-sm:9px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Password screen ── */
+    #lockScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: linear-gradient(135deg, #0D1117 0%, #161B22 50%, #0D1117 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .lock-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    }
+    .lock-icon { font-size: 3rem; margin-bottom: 16px; display: block; }
+    .lock-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .lock-sub {
+      font-size: .8rem;
+      color: var(--text-mid);
+      margin-bottom: 28px;
+    }
+    .lock-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 14px;
+      text-align: center;
+      letter-spacing: .1em;
+    }
+    .lock-input:focus { border-color: var(--orange); }
+    .lock-input.error { border-color: var(--red); animation: shake .3s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+    .lock-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+    }
+    .lock-btn:hover { opacity: .9; transform: translateY(-1px); }
+
+    /* ── App layout ── */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
+    #app.visible { display: flex; }
+
+    /* Header */
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.3rem;
+      letter-spacing: .08em;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .header-stats {
+      font-size: .75rem;
+      color: var(--text-mid);
+      display: flex;
+      gap: 12px;
+    }
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+    .stat-chip .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .dot-attend { background: var(--green); }
+    .dot-maybe  { background: var(--amber); }
+    .logout-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-mid);
+      font-size: .75rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: color .2s, border-color .2s;
+    }
+    .logout-btn:hover { color: var(--text); border-color: var(--orange); }
+
+    /* Main content */
+    .app-body { flex: 1; padding: 20px 16px 80px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+    /* Tab bar */
+    .tab-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      z-index: 100;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px 12px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .65rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: color .2s;
+    }
+    .tab-btn .tab-icon { font-size: 1.4rem; }
+    .tab-btn.active { color: var(--orange); }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section header ── */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .filter-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .78rem;
+      padding: 8px 28px 8px 10px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B949E' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color .2s;
+    }
+    .filter-select:focus { border-color: var(--orange); }
+    .sort-info {
+      font-size: .72rem;
+      color: var(--text-dim);
+      margin-left: auto;
+      align-self: center;
+    }
+
+    /* ── Registrations table ── */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    thead { background: var(--surface2); }
+    th {
+      padding: 11px 14px;
+      text-align: left;
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--text-mid);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: color .2s;
+    }
+    th:hover { color: var(--orange); }
+    th .sort-arrow { margin-left: 4px; opacity: .4; }
+    th.sorted .sort-arrow { opacity: 1; color: var(--orange); }
+    td {
+      padding: 12px 14px;
+      font-size: .82rem;
+      color: var(--text);
+      border-top: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: .72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-attend  { background: rgba(16,185,129,.15); color: #10B981; }
+    .badge-maybe   { background: rgba(255,171,70,.15);  color: #FFAB46; }
+    .badge-decline { background: rgba(239,68,68,.15);   color: #EF4444; }
+    .badge-in      { background: rgba(59,130,246,.15);  color: #3B82F6; }
+    .badge-out     { background: rgba(139,148,158,.1);  color: #8B949E; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-dim);
+      font-size: .85rem;
+    }
+
+    /* ── QR Scanner ── */
+    .qr-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .qr-start-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+      box-shadow: 0 4px 20px rgba(255,107,53,.35);
+    }
+    .qr-start-btn:hover { opacity: .9; transform: translateY(-2px); }
+    .qr-start-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    #qr-reader {
+      width: 100%;
+      max-width: 320px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    /* QR result overlay */
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      transition: background .4s;
+    }
+    .qr-overlay.show { display: flex; }
+    .qr-overlay.success { background: rgba(16,185,129,.92); }
+    .qr-overlay.error   { background: rgba(239,68,68,.9); }
+    .qr-overlay.already { background: rgba(59,130,246,.9); }
+
+    .qr-result-icon { font-size: 5rem; animation: bounceIn .5s cubic-bezier(.34,1.56,.64,1); }
+    .qr-result-text {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 12px rgba(0,0,0,.2);
+      animation: bounceIn .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    .qr-result-name {
+      font-size: 1rem;
+      color: rgba(255,255,255,.9);
+      animation: bounceIn .6s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes bounceIn {
+      from { opacity: 0; transform: scale(.4); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── Attendee list ── */
+    .tab-pills {
+      display: flex;
+      gap: 4px;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 16px;
+    }
+    .pill-btn {
+      flex: 1;
+      padding: 8px;
+      background: none;
+      border: none;
+      border-radius: 7px;
+      color: var(--text-mid);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .pill-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    .attendee-list { display: flex; flex-direction: column; gap: 8px; }
+    .attendee-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .attendee-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .attendee-info { flex: 1; }
+    .attendee-name { font-size: .9rem; font-weight: 700; color: var(--text); }
+    .attendee-meta { font-size: .72rem; color: var(--text-mid); margin-top: 2px; }
+    .attendee-status { flex-shrink: 0; }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .header-stats { display: none; }
+      .app-body { padding: 16px 12px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Password screen ── -->
+<div id="lockScreen">
+  <div class="lock-card">
+    <span class="lock-icon">🔒</span>
+    <h1 class="lock-title">管理者ログイン</h1>
+    <p class="lock-sub">IK主催BBQ 管理者専用画面</p>
+    <input type="password" id="pwInput" class="lock-input" placeholder="パスワードを入力" autocomplete="off">
+    <button class="lock-btn" id="pwBtn">ログイン →</button>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-logo">🔥 BBQ Admin</div>
+    <div class="header-right">
+      <div class="header-stats" id="headerStats"></div>
+      <button class="logout-btn" id="logoutBtn">ログアウト</button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <main class="app-body">
+
+    <!-- ① 回答一覧 -->
+    <div class="tab-panel active" id="panel-list">
+      <div class="section-title">📋 回答一覧</div>
+      <div class="filter-bar">
+        <select class="filter-select" id="filterAttendance">
+          <option value="">参加可否：すべて</option>
+          <option value="参加">参加</option>
+          <option value="未定">未定</option>
+          <option value="不参加">不参加</option>
+        </select>
+        <select class="filter-select" id="filterInviter">
+          <option value="">招待者：すべて</option>
+          <option>池田 晃</option>
+          <option>反町 顕</option>
+          <option>山葉 隼也</option>
+          <option>秦 稜</option>
+          <option>久米 渉</option>
+          <option>田崎 遼</option>
+        </select>
+        <select class="filter-select" id="filterCheckin">
+          <option value="">来場：すべて</option>
+          <option value="in">入場済み</option>
+          <option value="out">未入場</option>
+        </select>
+        <span class="sort-info" id="sortInfo"></span>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-col="created_at">日時 <span class="sort-arrow">↕</span></th>
+              <th data-col="name">名前 <span class="sort-arrow">↕</span></th>
+              <th data-col="group_name">所属</th>
+              <th data-col="inviter">招待者 <span class="sort-arrow">↕</span></th>
+              <th data-col="attendance">参加可否 <span class="sort-arrow">↕</span></th>
+              <th data-col="checked_in">来場</th>
+            </tr>
+          </thead>
+          <tbody id="regTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ② QR認証 -->
+    <div class="tab-panel" id="panel-qr">
+      <div class="section-title">📷 QR認証</div>
+      <div class="qr-panel">
+        <p style="color:var(--text-mid);font-size:.85rem;text-align:center;line-height:1.7;">
+          ボタンを押してカメラを起動し、<br>参加者のQRコードを読み取ってください。
+        </p>
+        <button class="qr-start-btn" id="qrToggleBtn">
+          <span>📷</span><span>カメラを起動</span>
+        </button>
+        <div id="qr-reader"></div>
+      </div>
+    </div>
+
+    <!-- ③ 来場者リスト -->
+    <div class="tab-panel" id="panel-attendees">
+      <div class="section-title">👥 来場者リスト</div>
+      <div class="tab-pills">
+        <button class="pill-btn active" data-tab="all">全員</button>
+        <button class="pill-btn" data-tab="out">未入場</button>
+        <button class="pill-btn" data-tab="in">入場済み</button>
+      </div>
+      <div class="attendee-list" id="attendeeList"></div>
+    </div>
+
+  </main>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-panel="list">
+      <span class="tab-icon">📋</span>回答一覧
+    </button>
+    <button class="tab-btn" data-panel="qr">
+      <span class="tab-icon">📷</span>QR認証
+    </button>
+    <button class="tab-btn" data-panel="attendees">
+      <span class="tab-icon">👥</span>来場者リスト
+    </button>
+  </nav>
+</div>
+
+<!-- QR result overlay -->
+<div class="qr-overlay" id="qrOverlay">
+  <div class="qr-result-icon" id="qrResultIcon"></div>
+  <div class="qr-result-text" id="qrResultText"></div>
+  <div class="qr-result-name" id="qrResultName"></div>
+</div>
+
+
+<script>
+  const SUPABASE_URL = 'https://vwwipikarcntjmtakhrz.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3d2lwaWthcmNudGptdGFraHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NTA0NjksImV4cCI6MjA5NDIyNjQ2OX0.SHe2NA5UAh4y79z5gS7IoWxc2dMF0lqnd7oBOQxVhw0';
+  const PASSWORD    = 'IK2026BBQ';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ═══════════ AUTH ═══════════ */
+  const pwInput = document.getElementById('pwInput');
+  const pwBtn   = document.getElementById('pwBtn');
+
+  function tryLogin() {
+    if (pwInput.value === PASSWORD) {
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('app').classList.add('visible');
+      loadAll();
+    } else {
+      pwInput.classList.add('error');
+      setTimeout(() => pwInput.classList.remove('error'), 500);
+      pwInput.value = '';
+    }
+  }
+  pwBtn.addEventListener('click', tryLogin);
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    location.reload();
+  });
+
+  /* ═══════════ DATA ═══════════ */
+  let allData = [];
+  let sortCol = 'created_at';
+  let sortAsc = false;
+  let attendeeFilter = 'all';
+
+  async function loadAll() {
+    const { data } = await db
+      .from('registrations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    allData = data || [];
+    renderAll();
+  }
+
+  function renderAll() {
+    renderStats();
+    renderTable();
+    renderAttendees();
+  }
+
+  /* ── Stats ── */
+  function renderStats() {
+    const attend  = allData.filter(r => r.attendance === '参加').length;
+    const maybe   = allData.filter(r => r.attendance === '未定').length;
+    const checkin = allData.filter(r => r.checked_in).length;
+    document.getElementById('headerStats').innerHTML = `
+      <div class="stat-chip"><div class="dot dot-attend"></div>${attend}名参加</div>
+      <div class="stat-chip"><div class="dot dot-maybe"></div>${maybe}名未定</div>
+      <div class="stat-chip">✅ ${checkin}名入場済</div>
+    `;
+  }
+
+  /* ═══════════ TABLE ═══════════ */
+  const filterAttendance = document.getElementById('filterAttendance');
+  const filterInviter    = document.getElementById('filterInviter');
+  const filterCheckin    = document.getElementById('filterCheckin');
+
+  [filterAttendance, filterInviter, filterCheckin].forEach(el => {
+    el.addEventListener('change', renderTable);
+  });
+
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) { sortAsc = !sortAsc; }
+      else { sortCol = col; sortAsc = true; }
+      renderTable();
+    });
+  });
+
+  function renderTable() {
+    let rows = [...allData];
+
+    /* Filter */
+    const fa = filterAttendance.value;
+    const fi = filterInviter.value;
+    const fc = filterCheckin.value;
+    if (fa) rows = rows.filter(r => r.attendance === fa);
+    if (fi) rows = rows.filter(r => r.inviter === fi);
+    if (fc === 'in')  rows = rows.filter(r => r.checked_in);
+    if (fc === 'out') rows = rows.filter(r => !r.checked_in);
+
+    /* Sort */
+    rows.sort((a, b) => {
+      let va = a[sortCol] ?? '';
+      let vb = b[sortCol] ?? '';
+      if (typeof va === 'boolean') { va = va ? 1 : 0; vb = vb ? 1 : 0; }
+      const cmp = String(va).localeCompare(String(vb), 'ja');
+      return sortAsc ? cmp : -cmp;
+    });
+
+    document.getElementById('sortInfo').textContent = `${rows.length}件`;
+
+    /* Update sort arrows */
+    document.querySelectorAll('th[data-col]').forEach(th => {
+      const arrow = th.querySelector('.sort-arrow');
+      if (!arrow) return;
+      th.classList.toggle('sorted', th.dataset.col === sortCol);
+      arrow.textContent = th.dataset.col === sortCol ? (sortAsc ? '↑' : '↓') : '↕';
+    });
+
+    const tbody = document.getElementById('regTableBody');
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">該当する回答がありません</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const dt = new Date(r.created_at);
+      const dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const attendBadge = r.attendance === '参加'  ? '<span class="badge badge-attend">✓ 参加</span>'
+                        : r.attendance === '未定'  ? '<span class="badge badge-maybe">？ 未定</span>'
+                        :                            '<span class="badge badge-decline">✗ 不参加</span>';
+      const checkinBadge = r.checked_in
+        ? '<span class="badge badge-in">✅ 入場済</span>'
+        : '<span class="badge badge-out">－ 未入場</span>';
+      return `<tr>
+        <td style="color:var(--text-mid);font-size:.75rem;">${dateStr}</td>
+        <td style="font-weight:600;">${esc(r.name)}</td>
+        <td style="color:var(--text-mid);">${esc(r.group_name || '—')}</td>
+        <td>${esc(r.inviter)}</td>
+        <td>${attendBadge}</td>
+        <td>${checkinBadge}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ═══════════ QR SCANNER ═══════════ */
+  let html5QrCode = null;
+  let scanning    = false;
+
+  document.getElementById('qrToggleBtn').addEventListener('click', async () => {
+    if (!scanning) {
+      await startScanner();
+    } else {
+      await stopScanner();
+    }
+  });
+
+  async function startScanner() {
+    const btn = document.getElementById('qrToggleBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-color:rgba(255,255,255,.4);border-top-color:#fff;width:16px;height:16px;border-width:2px;"></span><span>起動中...</span>';
+
+    html5QrCode = new Html5Qrcode('qr-reader');
+    try {
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        onQrSuccess,
+        () => {}
+      );
+      scanning = true;
+      btn.disabled = false;
+      btn.innerHTML = '<span>⏹</span><span>スキャン停止</span>';
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>📷</span><span>カメラを起動</span>';
+      alert('カメラの起動に失敗しました。カメラのアクセス許可を確認してください。');
+    }
+  }
+
+  async function stopScanner() {
+    if (html5QrCode && scanning) {
+      await html5QrCode.stop();
+      html5QrCode.clear();
+      scanning = false;
+    }
+    const btn = document.getElementById('qrToggleBtn');
+    btn.innerHTML = '<span>📷</span><span>カメラを起動</span>';
+  }
+
+  async function onQrSuccess(decodedText) {
+    const registrationId = parseInt(decodedText, 10);
+    if (isNaN(registrationId)) return;
+
+    await stopScanner();
+
+    const { data: reg } = await db
+      .from('registrations')
+      .select('*')
+      .eq('id', registrationId)
+      .single();
+
+    const overlay = document.getElementById('qrOverlay');
+    const icon    = document.getElementById('qrResultIcon');
+    const text    = document.getElementById('qrResultText');
+    const name    = document.getElementById('qrResultName');
+
+    if (!reg || reg.attendance !== '参加') {
+      overlay.className = 'qr-overlay show error';
+      icon.textContent = '❌';
+      text.textContent = '登録が見つかりません';
+      name.textContent = '';
+    } else if (reg.checked_in) {
+      overlay.className = 'qr-overlay show already';
+      icon.textContent = '⚠️';
+      text.textContent = '入場済みです';
+      name.textContent = `${reg.name}（${reg.nickname || ''}）`;
+    } else {
+      await db
+        .from('registrations')
+        .update({ checked_in: true, checked_in_at: new Date().toISOString() })
+        .eq('id', registrationId);
+
+      overlay.className = 'qr-overlay show success';
+      icon.textContent = '✅';
+      text.textContent = 'OK！ようこそ！';
+      name.textContent = `${reg.name}（${reg.nickname || ''}）`;
+
+      /* Refresh data */
+      await loadAll();
+    }
+
+    overlay.classList.add('show');
+    setTimeout(() => {
+      overlay.className = 'qr-overlay';
+    }, 3000);
+  }
+
+  /* ═══════════ ATTENDEE LIST ═══════════ */
+  document.querySelectorAll('.pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      attendeeFilter = btn.dataset.tab;
+      renderAttendees();
+    });
+  });
+
+  function renderAttendees() {
+    let rows = allData.filter(r => r.attendance === '参加');
+    if (attendeeFilter === 'in')  rows = rows.filter(r => r.checked_in);
+    if (attendeeFilter === 'out') rows = rows.filter(r => !r.checked_in);
+
+    const list = document.getElementById('attendeeList');
+    if (rows.length === 0) {
+      list.innerHTML = `<div class="empty-state">該当する参加者がいません</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(r => `
+      <div class="attendee-card">
+        <div class="attendee-avatar">${esc(r.name).charAt(0)}</div>
+        <div class="attendee-info">
+          <div class="attendee-name">${esc(r.name)}${r.nickname ? ` <span style="color:var(--text-mid);font-weight:400;font-size:.78rem;">（${esc(r.nickname)}）</span>` : ''}</div>
+          <div class="attendee-meta">${esc(r.inviter)} の招待 ／ ${esc(r.occupation || '—')}</div>
+        </div>
+        <div class="attendee-status">
+          ${r.checked_in
+            ? '<span class="badge badge-in">✅ 入場済</span>'
+            : '<span class="badge badge-out">未入場</span>'}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* ═══════════ TAB NAVIGATION ═══════════ */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panelId = btn.dataset.panel;
+
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+      btn.classList.add('active');
+      document.getElementById(`panel-${panelId}`).classList.add('active');
+
+      /* QRスキャナを別タブに移動したら停止 */
+      if (panelId !== 'qr' && scanning) stopScanner();
+    });
+  });
+
+  /* ── Helper ── */
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

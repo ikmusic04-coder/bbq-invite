@@ -7,7 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Noto+Sans+JP:wght@300;400;500;700&family=Caveat:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --orange: #FF6B35;
@@ -506,6 +507,72 @@
       100% { transform: translateY(-15vh) rotate(720deg); opacity: 0; }
     }
 
+    /* ── Submit loading state ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .submit-btn:disabled { opacity: .8; cursor: not-allowed; transform: none !important; }
+
+    /* ── QR in thank-you screen ── */
+    .ty-qr-wrapper {
+      margin-top: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      animation: slideUp .7s ease both;
+      animation-delay: .55s;
+    }
+    .ty-qr-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.28);
+      display: inline-block;
+    }
+    .ty-qr-box canvas, .ty-qr-box img { display: block; }
+    .ty-qr-label { font-size: .75rem; color: rgba(255,255,255,.8); text-align: center; }
+    .ty-qr-save {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: rgba(255,255,255,.18);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,.35);
+      border-radius: 100px;
+      color: #fff;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, transform .2s;
+    }
+    .ty-qr-save:hover { background: rgba(255,255,255,.28); transform: translateY(-1px); }
+
+    /* ── Error toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #EF4444;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: .85rem;
+      font-weight: 700;
+      z-index: 300;
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
     /* ── Responsive ── */
     @media (max-width: 480px) {
       .form-inner { padding: 24px 20px; }
@@ -751,8 +818,14 @@
     <h2 class="ty-title">See you at the BBQ!</h2>
     <p class="ty-message">
       ご回答ありがとうございました！<br>
-      QRコードをメールアドレスにお送りしましたのでご確認ください！
+      QRコードをご登録のメールアドレスにお送りしました。<br>
+      当日は下記QRコードをご提示ください。
     </p>
+    <div class="ty-qr-wrapper">
+      <div class="ty-qr-box" id="qrCodeContainer"></div>
+      <p class="ty-qr-label">受付にてスタッフにご提示ください</p>
+      <button class="ty-qr-save" id="qrSaveBtn">💾 画像として保存</button>
+    </div>
     <div class="ty-emoji-row">
       <span>🔥</span><span>🌊</span><span>🌴</span><span>🍻</span><span>🌟</span>
     </div>
@@ -805,6 +878,11 @@
 
 
 <script>
+  /* ── Config ── */
+  const SUPABASE_URL = 'https://vwwipikarcntjmtakhrz.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3d2lwaWthcmNudGptdGFraHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NTA0NjksImV4cCI6MjA5NDIyNjQ2OX0.SHe2NA5UAh4y79z5gS7IoWxc2dMF0lqnd7oBOQxVhw0';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   /* ── Stars ── */
   (function () {
     const c = document.getElementById('stars');
@@ -820,31 +898,39 @@
   /* ── Conditional section ── */
   const attendSel = document.getElementById('attendance');
   const attendSec = document.getElementById('attendeeSection');
-
   attendSel.addEventListener('change', function () {
     attendSec.classList.toggle('show', this.value === 'attend');
   });
 
   /* ── Validation helpers ── */
-  function markField(el, ok) {
-    el.classList.toggle('field-error', !ok);
-  }
-  function markCb(labelEl, ok) {
-    labelEl.classList.toggle('cb-error', !ok);
+  function markField(el, ok) { el.classList.toggle('field-error', !ok); }
+  function markCb(labelEl, ok) { labelEl.classList.toggle('cb-error', !ok); }
+
+  /* ── Toast ── */
+  function showToast(msg) {
+    let t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast';
+      t.className = 'toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 4000);
   }
 
   /* ── Form submit ── */
-  document.getElementById('rsvpForm').addEventListener('submit', function (e) {
+  document.getElementById('rsvpForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     let ok = true;
     const attendance = attendSel.value;
+    const nameEl    = document.getElementById('name');
+    const inviterEl = document.getElementById('inviter');
 
-    const name = document.getElementById('name');
-    const inviter = document.getElementById('inviter');
-
-    if (!name.value.trim())   { markField(name, false);    ok = false; } else markField(name, true);
-    if (!inviter.value)        { markField(inviter, false); ok = false; } else markField(inviter, true);
-    if (!attendance)           { markField(attendSel, false); ok = false; } else markField(attendSel, true);
+    if (!nameEl.value.trim()) { markField(nameEl, false); ok = false; } else markField(nameEl, true);
+    if (!inviterEl.value)     { markField(inviterEl, false); ok = false; } else markField(inviterEl, true);
+    if (!attendance)          { markField(attendSel, false); ok = false; } else markField(attendSel, true);
 
     if (attendance === 'attend') {
       ['nickname','job','boom','email'].forEach(function (id) {
@@ -854,14 +940,10 @@
           : f.value.trim();
         if (!v) { markField(f, false); ok = false; } else markField(f, true);
       });
-
-      const cbPay    = document.getElementById('cbPayment');
-      const cbCancel = document.getElementById('cbCancel');
-      const lblPay   = document.getElementById('cbPaymentLabel');
-      const lblCan   = document.getElementById('cbCancelLabel');
-
-      if (!cbPay.checked)    { markCb(lblPay, false); ok = false; } else markCb(lblPay, true);
-      if (!cbCancel.checked) { markCb(lblCan, false); ok = false; } else markCb(lblCan, true);
+      const lblPay = document.getElementById('cbPaymentLabel');
+      const lblCan = document.getElementById('cbCancelLabel');
+      if (!document.getElementById('cbPayment').checked) { markCb(lblPay, false); ok = false; } else markCb(lblPay, true);
+      if (!document.getElementById('cbCancel').checked)  { markCb(lblCan, false); ok = false; } else markCb(lblCan, true);
     }
 
     if (!ok) {
@@ -870,18 +952,87 @@
       return;
     }
 
-    /* Show thank-you */
-    document.getElementById('formSection').style.display = 'none';
-    document.getElementById('stars').style.display = 'none';
-    document.querySelector('.bg-waves').style.display = 'none';
+    /* ── Loading state ── */
+    const btn = document.querySelector('.submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span><span>送信中...</span>';
 
-    const tyId = attendance === 'attend' ? 'ty-attend'
-               : attendance === 'maybe'  ? 'ty-maybe'
-               :                           'ty-decline';
+    try {
+      /* ── 1. Supabase insert ── */
+      const attendanceMap = { attend: '参加', maybe: '未定', decline: '不参加' };
+      const payload = {
+        name:        nameEl.value.trim(),
+        group_name:  document.getElementById('org').value.trim() || null,
+        inviter:     inviterEl.value,
+        attendance:  attendanceMap[attendance],
+        nickname:    attendance === 'attend' ? document.getElementById('nickname').value.trim() : null,
+        occupation:  attendance === 'attend' ? document.getElementById('job').value.trim()      : null,
+        hobby:       attendance === 'attend' ? document.getElementById('boom').value.trim()     : null,
+        email:       attendance === 'attend' ? document.getElementById('email').value.trim()    : null,
+        notes:       document.getElementById('notes')?.value.trim() || null,
+      };
 
-    document.getElementById(tyId).classList.add('active');
+      const { data, error } = await db.from('registrations').insert(payload).select('id').single();
+      if (error) throw new Error('データの保存に失敗しました: ' + error.message);
 
-    if (attendance === 'attend') spawnParticles();
+      const registrationId = data.id;
+
+      /* ── 2. QR code generation (for display) ── */
+      if (attendance === 'attend') {
+        const container = document.getElementById('qrCodeContainer');
+        container.innerHTML = '';
+        new QRCode(container, {
+          text: String(registrationId),
+          width: 220, height: 220,
+          colorDark: '#1C1917', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H,
+        });
+
+        /* ── 3. Send email via Netlify Function ── */
+        try {
+          await fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email:          payload.email,
+              name:           payload.name,
+              nickname:       payload.nickname,
+              inviter:        payload.inviter,
+              registrationId: registrationId,
+            }),
+          });
+        } catch (_) {
+          /* メール送信失敗でも登録は完了として扱う */
+        }
+      }
+
+      /* ── 4. Show thank-you screen ── */
+      document.getElementById('formSection').style.display = 'none';
+      document.getElementById('stars').style.display = 'none';
+      document.querySelector('.bg-waves').style.display = 'none';
+
+      const tyId = attendance === 'attend' ? 'ty-attend'
+                 : attendance === 'maybe'  ? 'ty-maybe'
+                 :                           'ty-decline';
+      document.getElementById(tyId).classList.add('active');
+
+      if (attendance === 'attend') spawnParticles();
+
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>✨</span><span>回答を送信する</span><span>→</span>';
+      showToast(err.message || '送信に失敗しました。もう一度お試しください。');
+    }
+  });
+
+  /* ── QR save button ── */
+  document.getElementById('qrSaveBtn').addEventListener('click', function () {
+    const canvas = document.querySelector('#qrCodeContainer canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = 'bbq_qr.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
   });
 
   /* ── Clear errors on input ── */
@@ -889,9 +1040,7 @@
     el.addEventListener('input', function () { this.classList.remove('field-error'); });
   });
   document.querySelectorAll('.checkbox-label').forEach(function (lb) {
-    lb.querySelector('input').addEventListener('change', function () {
-      lb.classList.remove('cb-error');
-    });
+    lb.querySelector('input').addEventListener('change', function () { lb.classList.remove('cb-error'); });
   });
 
   /* ── Particles (attend screen) ── */
@@ -902,11 +1051,7 @@
       const p = document.createElement('div');
       p.className = 'particle';
       p.textContent = ems[Math.floor(Math.random() * ems.length)];
-      p.style.cssText =
-        `left:${Math.random()*100}%;`
-        + `font-size:${0.9 + Math.random()*1.6}rem;`
-        + `--d:${5 + Math.random()*8}s;`
-        + `--dl:${-Math.random()*5}s;`;
+      p.style.cssText = `left:${Math.random()*100}%;font-size:${0.9+Math.random()*1.6}rem;--d:${5+Math.random()*8}s;--dl:${-Math.random()*5}s;`;
       wrap.appendChild(p);
     }
   }
